@@ -6,71 +6,15 @@
 /**
  * Initializations and import Required Modules
  */
-require('dotenv').config();
-const express = require('express')
+
+const supportingMethods = require('./supportingMethods');
+const controller = require('./controllers');
+const { staticData } = require('./staticdata');
+const express = require('express');
 const app = express();
-const got = require('got');
-const port = process.env.PORT || "8000";
-const cors = require('cors')
 
-const getAllMedicines = process.env.GET_ALL_MEDICINES_URL
-const getMedicine = process.env.GET_MEDICINE_URL
-const updateMedicine = process.env.UPDATE_MEDICINE_URL
-const deleteMedicine = process.env.DELETE_MEDICINE_URL
-const createMedicine = process.env.CREATE_MEDICINE_URL
-
-const regex = /{id}/ig;
-
-const frontendUrl = process.env.FRONEND_URL;
-
-/**
- * Supporting Functions
- * @param {INTEGER} statusCode 
- * @param {STRING} message 
- * @returns {JSON}
- */
-
-function handleResponse(statusCode, message) {
-    return {
-        'statusCode': statusCode,
-        'body': JSON.stringify(message)
-    }
-}
-
-function getUrlByReplacingId(url, id) {
-    console.log(url, id);
-    let urlWithId = url.toString();
-    urlWithId = urlWithId.replace(regex, id);
-    return urlWithId;
-}
-
-function createGetReqObj(url) {
-    console.log(url);
-    const getReq = {
-        url: url,
-        responseType: 'json'
-    }
-    console.log(getReq);
-    return getReq;
-}
-
-function createPostReqObj(url, body) {
-    const postReq = {
-        url: url,
-        responseType: 'json',
-        body: body
-    }
-    console.log(postReq);
-    return postReq;
-}
-
-function createDelReqObj(url, body) {
-    const delReq = {
-        url: url
-    }
-    console.log(delReq);
-    return delReq;
-}
+const frontendUrl = staticData.frontendUrl;
+const port = staticData.port;
 
 /**
  * Server Activation
@@ -93,72 +37,49 @@ function createDelReqObj(url, body) {
     console.log("/ is hitted");
   })
 
-  app.get('/get/medicines', (req, res) => {
-    console.log("get all medicines");
-    var req = createGetReqObj(getAllMedicines);
-    got.get(req)
-    .then((allMedicines) => {
-        console.log(allMedicines);
-        return res.status(200).send(JSON.stringify(allMedicines.body));
-    })
-    .catch((error) => {
-        return res.status(500).send(JSON.stringify(error.message));
-    })
+  app.get('/get/medicines', async (req, res) => {
+    console.log("In Index.js");
+    const allMedicines = await controller.getMedicines(res);
+    Promise.resolve(allMedicines)
+    return res.send(allMedicines);
   })
 
-  app.get('/get/medicine/:id',  (req, res) => {
-    const url = getUrlByReplacingId(getMedicine, req.params.id);
-    console.log(url);
-    var req = createGetReqObj(url);
-    got.get(req)
-    .then((medicineData) => {
-        console.log(medicineData);
-        return res.status(200).send(JSON.stringify(medicineData.body));
-    })
-    .catch((error) => {
-        return res.status(500).send(JSON.stringify(error.message));
-    })
+  app.get('/get/medicine/:id',  async (req, res) => {
+    const id = req.params.id;
+    const medicine = await controller.getMedicineById(id);
+    Promise.resolve(medicine)
+    return res.send(medicine);
   })
 
-  app.post('/create/medicine',  (req, res) => {
+  app.post('/create/medicine',  async (req, res) => {
     const reqBody = JSON.parse(req.body);
-    console.log(reqBody);
-    var req = createPostReqObj(createMedicine, reqBody);
-    got.post(req)
-    .then((createdMedicine) => {
-        console.log(createMedicine);
-        return res.status(200).send(JSON.stringify(createdMedicine.body));
-    })
-    .catch((error) => {
-        return res.status(500).send(JSON.stringify(error.message));
-    })
+    
+    const validReqObj = supportingMethods.isValidReqObj(reqBody);
+    if(!validReqObj.isValid) {
+        return res.send(supportingMethods.createResponse(500, validReqObj));
+    }
+    let createdMedicine = await controller.createNewMedicine(reqBody);
+    Promise.resolve(createdMedicine)
+    return res.send(createdMedicine);
   })
 
-  app.put('/update/medicine/:id',  (req, res) => {
+  app.put('/update/medicine/:id',  async (req, res) => {
     const reqBody = JSON.parse(req.body);
-    const url = getUrlByReplacingId(updateMedicine, req.params.id);
-    console.log(url);
-    var req = createPostReqObj(url, reqBody);
-    got.put(req)
-    .then((updatedMedicine) => {
-        console.log(updateMedicine);
-        return res.status(200).send(JSON.stringify(updatedMedicine.body));
-    })
-    .catch((error) => {
-        return res.status(500).send(JSON.stringify(error.message));
-    })
+    
+    const validReqObj = supportingMethods.isValidReqObj(reqBody);
+    if(!validReqObj.isValid) {
+        return res.send(supportingMethods.createResponse(500, validReqObj));
+    }
+    const id = req.params.id;
+
+    let updatedMedicine = await controller.updateMedicineById(id, reqBody);
+    Promise.resolve(updatedMedicine)
+    return res.send(updatedMedicine);
   })
 
-  app.delete('/delete/medicine/:id',  (req, res) => {
-    const url = getUrlByReplacingId(deleteMedicine, req.params.id);
-    console.log(url);
-    var req = createDelReqObj(url);
-    got.delete(req)
-    .then((deletedResponse) => {
-        console.log(deletedResponse);
-        return res.status(200).send(JSON.stringify(deletedResponse.body));
-    })
-    .catch((error) => {
-        return res.status(500).send(JSON.stringify(error.message));
-    })
+  app.delete('/delete/medicine/:id',  async (req, res) => {
+    const id = req.params.id;
+    let deletedMedicine = await controller.deleteMedicineById(id);
+    Promise.resolve(deletedMedicine)
+    return res.send(deletedMedicine);
   })
